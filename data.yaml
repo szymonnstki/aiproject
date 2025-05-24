@@ -1,0 +1,5 @@
+train: datasets/images/train
+val: datasets/images/val
+
+nc: 3  # liczba klas (car, van, motor)
+names: ['car', 'van', 'motor']
