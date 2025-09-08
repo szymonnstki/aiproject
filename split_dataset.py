@@ -1,22 +1,23 @@
 import os
+
 from PIL import Image
 
 # Ścieżki
-input_labels_dir = 'labels_visdrone'  # oryginalne pliki .txt
-input_images_dir = 'images'           # folder z oryginalnymi obrazami
-output_labels_dir = 'labels_yolo'     # folder wyjściowy z etykietami YOLO
+input_labels_dir = "labels_visdrone"  # oryginalne pliki .txt
+input_images_dir = "images"  # folder z oryginalnymi obrazami
+output_labels_dir = "labels_yolo"  # folder wyjściowy z etykietami YOLO
 
 # Utwórz folder wyjściowy, jeśli nie istnieje
 os.makedirs(output_labels_dir, exist_ok=True)
 
 # Przetwórz każdy plik etykiet
 for label_file in os.listdir(input_labels_dir):
-    if not label_file.endswith('.txt'):
+    if not label_file.endswith(".txt"):
         continue
 
     # Ścieżki
     label_path = os.path.join(input_labels_dir, label_file)
-    image_name = os.path.splitext(label_file)[0] + '.jpg'
+    image_name = os.path.splitext(label_file)[0] + ".jpg"
     image_path = os.path.join(input_images_dir, image_name)
     output_path = os.path.join(output_labels_dir, label_file)
 
@@ -30,9 +31,9 @@ for label_file in os.listdir(input_labels_dir):
         width, height = img.size
 
     # Wczytaj etykiety i przelicz
-    with open(label_path, 'r') as f_in, open(output_path, 'w') as f_out:
+    with open(label_path) as f_in, open(output_path, "w") as f_out:
         for line in f_in:
-            parts = line.strip().split(',')
+            parts = line.strip().split(",")
             if len(parts) < 5:
                 continue
 
