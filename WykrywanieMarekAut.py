@@ -1,18 +1,18 @@
-import torch
 import cv2
 import numpy as np
-from PIL import Image
-from torchvision import transforms, models
+import torch
 import torch.nn as nn
+from PIL import Image
+from torchvision import models, transforms
 
 
 class CarBrandClassifier:
-    def __init__(self, model_path, device='cuda' if torch.cuda.is_available() else 'cpu'):
+    def __init__(self, model_path, device="cuda" if torch.cuda.is_available() else "cpu"):
         self.device = device
         checkpoint = torch.load(model_path, map_location=device)
 
         # Wczytanie nazw klas
-        self.class_names = checkpoint['class_names']
+        self.class_names = checkpoint["class_names"]
         print(f"Zarejestrowane marki aut: {self.class_names}")
 
         # Inicjalizacja modelu z odpowiednią architekturą
@@ -28,23 +28,25 @@ class CarBrandClassifier:
             nn.ReLU(),
             nn.BatchNorm1d(1024),
             nn.Dropout(0.3),
-            nn.Linear(1024, len(self.class_names))
+            nn.Linear(1024, len(self.class_names)),
         )
 
         # Wczytanie wag
-        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model = self.model.to(device)
         self.model.eval()
 
         # Transformacje obrazu
-        self.transform = transforms.Compose([
-            transforms.Resize((256, 256)),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((256, 256)),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ]
+        )
 
     def classify(self, image):
-        """Klasyfikacja marki auta na podstawie obrazu"""
+        """Klasyfikacja marki auta na podstawie obrazu."""
         if isinstance(image, np.ndarray):
             image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
@@ -64,14 +66,12 @@ class CarDetectionSystem:
         self.classifier = CarBrandClassifier(classifier_model_path)
 
     def load_yolo_model(self, model_path):
-        """Ładowanie modelu YOLOv5 z obsługą błędów"""
+        """Ładowanie modelu YOLOv5 z obsługą błędów."""
         try:
             # Load model with force_reload and skip validation
-            model = torch.hub.load('ultralytics/yolov5', 'custom',
-                                   path=model_path,
-                                   force_reload=True,
-                                   skip_validation=True,
-                                   verbose=False)
+            model = torch.hub.load(
+                "ultralytics/yolov5", "custom", path=model_path, force_reload=True, skip_validation=True, verbose=False
+            )
             print("Model YOLO pomyślnie załadowany")
             return model
         except Exception as e:
@@ -81,6 +81,7 @@ class CarDetectionSystem:
             try:
                 # Try loading with newer method
                 from ultralytics import YOLO
+
                 model = YOLO(model_path)
                 return model
             except Exception as e2:
@@ -88,49 +89,40 @@ class CarDetectionSystem:
                 raise RuntimeError("Nie można załadować modelu YOLO")
 
     def process_frame(self, frame, conf_threshold=0.75):
-        """Przetwarzanie pojedynczej klatki wideo"""
+        """Przetwarzanie pojedynczej klatki wideo."""
         detections = []
 
         # Handle different YOLO versions
-        if hasattr(self.yolo_model, 'predict'):
+        if hasattr(self.yolo_model, "predict"):
             # For newer YOLO versions (v8+)
             results = self.yolo_model.predict(frame)
 
             # Check if results is a list (YOLOv8) or has xyxy attribute (older YOLOv5)
             if isinstance(results, list):  # YOLOv8 format
                 for result in results:
-                    if hasattr(result, 'boxes'):
+                    if hasattr(result, "boxes"):
                         boxes = result.boxes
                         for box in boxes:
-                            if result.names[int(box.cls)] == 'car' and box.conf > conf_threshold:
+                            if result.names[int(box.cls)] == "car" and box.conf > conf_threshold:
                                 x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                                detections.append({
-                                    'bbox': (x1, y1, x2, y2),
-                                    'confidence': float(box.conf)
-                                })
+                                detections.append({"bbox": (x1, y1, x2, y2), "confidence": float(box.conf)})
             else:  # Older YOLOv5 format
                 for *box, conf, cls in results.xyxy[0]:
-                    if results.names[int(cls)] == 'car' and conf > conf_threshold:
+                    if results.names[int(cls)] == "car" and conf > conf_threshold:
                         x1, y1, x2, y2 = map(int, box)
-                        detections.append({
-                            'bbox': (x1, y1, x2, y2),
-                            'confidence': float(conf)
-                        })
+                        detections.append({"bbox": (x1, y1, x2, y2), "confidence": float(conf)})
         else:
             # For older YOLOv5 versions
             results = self.yolo_model(frame)
             for *box, conf, cls in results.xyxy[0]:
-                if self.yolo_model.names[int(cls)] == 'car' and conf > conf_threshold:
+                if self.yolo_model.names[int(cls)] == "car" and conf > conf_threshold:
                     x1, y1, x2, y2 = map(int, box)
-                    detections.append({
-                        'bbox': (x1, y1, x2, y2),
-                        'confidence': float(conf)
-                    })
+                    detections.append({"bbox": (x1, y1, x2, y2), "confidence": float(conf)})
 
         # Klasyfikacja i wizualizacja
         results = []
         for det in detections:
-            x1, y1, x2, y2 = det['bbox']
+            x1, y1, x2, y2 = det["bbox"]
             car_img = frame[y1:y2, x1:x2]
 
             if car_img.size == 0:
@@ -142,20 +134,16 @@ class CarDetectionSystem:
                 print(f"Błąd klasyfikacji: {e}")
                 brand = "unknown"
 
-            results.append({
-                'bbox': det['bbox'],
-                'confidence': det['confidence'],
-                'brand': brand
-            })
+            results.append({"bbox": det["bbox"], "confidence": det["confidence"], "brand": brand})
 
             # Rysowanie wyników tylko jeśli pewność ≥75%
-            if det['confidence'] >= 0.75:
+            if det["confidence"] >= 0.75:
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 label = f"{brand} {det['confidence']:.2f}"
-                cv2.putText(frame, label, (x1, y1 - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         return results, frame
+
 
 def process_video(video_path, output_path, yolo_model_path, classifier_model_path):
     # Inicjalizacja systemu
@@ -174,7 +162,7 @@ def process_video(video_path, output_path, yolo_model_path, classifier_model_pat
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     # Inicjalizacja writer dla output video
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     frame_count = 0
@@ -193,8 +181,8 @@ def process_video(video_path, output_path, yolo_model_path, classifier_model_pat
         out.write(processed_frame)
 
         # Wyświetlenie podglądu
-        cv2.imshow('Wynik', processed_frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        cv2.imshow("Wynik", processed_frame)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     # Zwolnienie zasobów
@@ -203,12 +191,13 @@ def process_video(video_path, output_path, yolo_model_path, classifier_model_pat
     cv2.destroyAllWindows()
     print("Przetwarzanie wideo zakończone")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # Konfiguracja ścieżek
-    yolo_path = 'C:/Users/hachi/aiproject/runs/train/car-detection/weights/best.pt'
-    classifier_path = 'C:/Users/hachi/aiproject/best_model_copy.pth'
-    video_path = 'C:/Users/hachi/aiproject/dataimg/highway4.mp4'
-    output_video_path = 'C:/Users/hachi/aiproject/output_video.mp4'
+    yolo_path = "C:/Users/hachi/aiproject/runs/train/car-detection/weights/best.pt"
+    classifier_path = "C:/Users/hachi/aiproject/best_model_copy.pth"
+    video_path = "C:/Users/hachi/aiproject/dataimg/highway4.mp4"
+    output_video_path = "C:/Users/hachi/aiproject/output_video.mp4"
 
     # Przetwarzanie wideo
     process_video(video_path, output_video_path, yolo_path, classifier_path)
