@@ -1,18 +1,19 @@
 import os
+
 from PIL import Image
 
-input_labels_dir = 'VisDrone2019-DET-train/annotations'
-input_images_dir = 'VisDrone2019-DET-train/images'
-output_labels_dir = 'labels_yolo'
+input_labels_dir = "VisDrone2019-DET-train/annotations"
+input_images_dir = "VisDrone2019-DET-train/images"
+output_labels_dir = "labels_yolo"
 
 os.makedirs(output_labels_dir, exist_ok=True)
 
 for label_file in os.listdir(input_labels_dir):
-    if not label_file.endswith('.txt'):
+    if not label_file.endswith(".txt"):
         continue
 
     label_path = os.path.join(input_labels_dir, label_file)
-    image_name = os.path.splitext(label_file)[0] + '.jpg'
+    image_name = os.path.splitext(label_file)[0] + ".jpg"
     image_path = os.path.join(input_images_dir, image_name)
     output_path = os.path.join(output_labels_dir, label_file)
 
@@ -23,9 +24,9 @@ for label_file in os.listdir(input_labels_dir):
     with Image.open(image_path) as img:
         width, height = img.size
 
-    with open(label_path, 'r') as f_in, open(output_path, 'w') as f_out:
+    with open(label_path) as f_in, open(output_path, "w") as f_out:
         for line in f_in:
-            parts = line.strip().split(',')
+            parts = line.strip().split(",")
             if len(parts) < 7:
                 continue
 
